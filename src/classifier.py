@@ -82,9 +82,18 @@ confidence (0 עד 1), reason (משפט קצר בעברית).
         print(f"CLASSIFIER: Gemini SUCCESS ({model})", flush=True)
         return data
 
+        except requests.HTTPError as e:
+        print(
+            f"CLASSIFIER: Gemini HTTP ERROR "
+            f"{r.status_code}: {r.text[:1500]}",
+            flush=True
+        )
+        return heuristic_classify(title, summary)
+
     except Exception as e:
         print(
-            f"CLASSIFIER: Gemini FAILED ({type(e).__name__}). Falling back to heuristic.",
+            f"CLASSIFIER: Gemini FAILED "
+            f"({type(e).__name__}): {e}",
             flush=True
         )
         return heuristic_classify(title, summary)
