@@ -43,9 +43,13 @@ def heuristic_classify(title, summary=""):
 
 def classify(title, summary=""):
     api_key = os.getenv("GEMINI_API_KEY")
+
     if not api_key:
+        print("CLASSIFIER: No API key. Using heuristic.", flush=True)
         return heuristic_classify(title, summary)
+
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
     prompt = f"""
 סווג את הכותרת החדשותית הבאה בעברית. החזר JSON בלבד עם השדות:
 category (אחת מהקטגוריות: {", ".join(CATEGORIES)}),
@@ -58,16 +62,29 @@ confidence (0 עד 1), reason (משפט קצר בעברית).
 כותרת: {title}
 תקציר: {summary[:1200]}
 """
+
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
     try:
-        r = requests.post(url, json={"contents":[{"parts":[{"text":prompt}]}],
-                                     "generationConfig":{"responseMimeType":"application/json"}},
-                          timeout=30)
+        r = requests.post(
+            url,
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"responseMimeType": "application/json"}
+            },
+            timeout=30
+        )
         r.raise_for_status()
         raw = r.json()["candidates"][0]["content"]["parts"][0]["text"]
         data = json.loads(raw)
         data["classifier"] = model
+
+        print(f"CLASSIFIER: Gemini SUCCESS ({model})", flush=True)
         return data
-    except Exception:
-        # Keep the pipeline running if the free API is unavailable or quota is exhausted.
+
+    except Exception as e:
+        print(
+            f"CLASSIFIER: Gemini FAILED ({type(e).__name__}). Falling back to heuristic.",
+            flush=True
+        )
         return heuristic_classify(title, summary)
