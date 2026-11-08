@@ -63,7 +63,7 @@ def classify(title, summary=""):
         print("CLASSIFIER: No API key. Using heuristic.", flush=True)
         return heuristic_classify(title, summary)
 
-    model = "gemini-3.8-flash"
+    model = "gemini-3.5-flash-lite"
 
     prompt = f"""
 סווג את הכותרת החדשותית הבאה בעברית. החזר JSON בלבד עם השדות:
