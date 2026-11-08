@@ -55,6 +55,7 @@ def heuristic_classify(title, summary=""):
     }
 
 
+
 def classify(title, summary=""):
     api_key = os.getenv("GEMINI_API_KEY")
 
@@ -62,7 +63,7 @@ def classify(title, summary=""):
         print("CLASSIFIER: No API key. Using heuristic.", flush=True)
         return heuristic_classify(title, summary)
 
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = "gemini-3.8-flash"
 
     prompt = f"""
 סווג את הכותרת החדשותית הבאה בעברית. החזר JSON בלבד עם השדות:
@@ -73,28 +74,75 @@ severity (נמוכה/בינונית/גבוהה),
 is_human_tragedy (boolean), is_good_news (boolean),
 confidence (0 עד 1), reason (משפט קצר בעברית).
 הבחן בין סיקור שלילי לבין טרגדיה אנושית. אל תסיק עובדות שאינן בכותרת.
+
 כותרת: {title}
 תקציר: {summary[:1200]}
 """
 
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:generateContent?key={api_key}"
-    )
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "category": {"type": "STRING", "enum": CATEGORIES},
+            "subcategory": {"type": "STRING"},
+            "sentiment": {
+                "type": "STRING",
+                "enum": ["שלילי", "ניטרלי", "חיובי"]
+            },
+            "negativity_score": {"type": "NUMBER"},
+            "severity": {
+                "type": "STRING",
+                "enum": ["נמוכה", "בינונית", "גבוהה"]
+            },
+            "is_human_tragedy": {"type": "BOOLEAN"},
+            "is_good_news": {"type": "BOOLEAN"},
+            "confidence": {"type": "NUMBER"},
+            "reason": {"type": "STRING"}
+        },
+        "required": [
+            "category", "subcategory", "sentiment",
+            "negativity_score", "severity",
+            "is_human_tragedy", "is_good_news",
+            "confidence", "reason"
+        ]
+    }
 
     try:
         r = requests.post(
-            url,
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"responseMimeType": "application/json"}
+            "https://generativelanguage.googleapis.com/v1beta/interactions",
+            headers={
+                "x-goog-api-key": api_key,
+                "Content-Type": "application/json"
             },
-            timeout=30
+            json={
+                "model": model,
+                "input": prompt,
+                "response_format": {
+                    "type": "text",
+                    "mime_type": "application/json",
+                    "schema": schema
+                }
+            },
+            timeout=60
         )
 
         r.raise_for_status()
+        response = r.json()
 
-        raw = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        # Extract text from the Interactions API response.
+        raw = response.get("output_text")
+
+        if not raw:
+            blocks = []
+            for key in ("steps", "outputs"):
+                for step in response.get(key, []):
+                    for item in step.get("content", []):
+                        if item.get("type") == "text":
+                            blocks.append(item.get("text", ""))
+            raw = "".join(blocks)
+
+        if not raw:
+            raise ValueError("No text returned by Gemini")
+
         data = json.loads(raw)
         data["classifier"] = model
 
