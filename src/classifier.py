@@ -1,4 +1,7 @@
-import json, os, re, requests
+
+import json
+import os
+import requests
 
 CATEGORIES = [
     "ביטחון ומלחמה", "פוליטיקה ומשפט", "פלילים ואלימות", "תאונות ואסונות",
@@ -6,8 +9,10 @@ CATEGORIES = [
     "מדע וטכנולוגיה", "חדשות טובות", "חדשות קלילות", "אחר"
 ]
 
+
 def heuristic_classify(title, summary=""):
     text = (title + " " + summary).lower()
+
     rules = [
         ("תאונות ואסונות", ["תאונה", "נהרג", "הרוג", "נפצע", "שריפה", "הצפה", "אסון"]),
         ("פלילים ואלימות", ["רצח", "דקירה", "חשד", "נעצר", "תקיפה", "אלימות", "כתב אישום"]),
@@ -20,26 +25,35 @@ def heuristic_classify(title, summary=""):
         ("מדע וטכנולוגיה", ["בינה מלאכותית", "טכנולוגיה", "מחקר", "מדע", "סטארט-אפ", "סייבר"]),
         ("חדשות טובות", ["הציל", "זכה", "זכייה", "הישג", "תרומה", "התנדבות"])
     ]
+
     category = "אחר"
     for cat, words in rules:
         if any(w in text for w in words):
             category = cat
             break
+
     negative_words = ["נהרג", "נרצח", "פיגוע", "פצוע", "אסון", "תקיפה", "שריפה", "משבר", "קריסה"]
     positive_words = ["הציל", "זכה", "הישג", "ניצחון", "הצלחה", "נחנך"]
+
     neg = any(w in text for w in negative_words)
     pos = any(w in text for w in positive_words)
+
     sentiment = "שלילי" if neg else ("חיובי" if pos else "ניטרלי")
     score = 0.85 if neg else (0.8 if pos else 0.15)
+
     return {
-        "category": category, "subcategory": "לא סווג",
-        "sentiment": sentiment, "negativity_score": score if neg else (0.1 if pos else 0.0),
+        "category": category,
+        "subcategory": "לא סווג",
+        "sentiment": sentiment,
+        "negativity_score": score if neg else (0.1 if pos else 0.0),
         "severity": "גבוהה" if any(w in text for w in ["נהרג", "נרצח", "פיגוע", "אסון"]) else ("בינונית" if neg else "נמוכה"),
         "is_human_tragedy": bool(any(w in text for w in ["נהרג", "נרצח", "פצוע", "פיגוע", "תאונה"])),
-        "is_good_news": pos, "confidence": 0.35,
+        "is_good_news": pos,
+        "confidence": 0.35,
         "reason": "סיווג מקומי ראשוני לפי מילות מפתח; מומלץ לאמת מול מודל AI.",
         "classifier": "heuristic"
     }
+
 
 def classify(title, summary=""):
     api_key = os.getenv("GEMINI_API_KEY")
@@ -63,7 +77,10 @@ confidence (0 עד 1), reason (משפט קצר בעברית).
 תקציר: {summary[:1200]}
 """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{model}:generateContent?key={api_key}"
+    )
 
     try:
         r = requests.post(
@@ -74,7 +91,9 @@ confidence (0 עד 1), reason (משפט קצר בעברית).
             },
             timeout=30
         )
+
         r.raise_for_status()
+
         raw = r.json()["candidates"][0]["content"]["parts"][0]["text"]
         data = json.loads(raw)
         data["classifier"] = model
@@ -82,7 +101,7 @@ confidence (0 עד 1), reason (משפט קצר בעברית).
         print(f"CLASSIFIER: Gemini SUCCESS ({model})", flush=True)
         return data
 
-        except requests.HTTPError as e:
+    except requests.HTTPError:
         print(
             f"CLASSIFIER: Gemini HTTP ERROR "
             f"{r.status_code}: {r.text[:1500]}",
