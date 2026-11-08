@@ -35,7 +35,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-2.5-flash
           DATABASE_PATH: data/news.db
-        run: python -m src.collect
+        run: python -u -m src.collect
 
       - name: Commit database
         run: |
