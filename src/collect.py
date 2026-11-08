@@ -36,10 +36,22 @@ def main():
     seen = new_count = 0
     errors = []
     for feed in feeds:
-        if not feed.get("enabled") or not feed.get("url"):
-            continue
-        try:
-            parsed = feedparser.parse(feed["url"], request_headers={"User-Agent":"IsraelNewsObservatory/0.1 (personal research)"})
+    if not feed.get("enabled") or not feed.get("url"):
+        print(f"Skipping {feed['name']}: disabled or missing URL", flush=True)
+        continue
+
+    print(f"Fetching {feed['name']}...", flush=True)
+
+    try:
+        parsed = feedparser.parse(
+            feed["url"],
+            request_headers={"User-Agent": "IsraelNewsObservatory/0.1 (personal research)"}
+        )
+
+        print(
+            f"{feed['name']}: received {len(parsed.entries)} entries",
+            flush=True
+        )
             if parsed.bozo and not parsed.entries:
                 raise RuntimeError(str(parsed.bozo_exception))
             for entry in parsed.entries[:100]:
