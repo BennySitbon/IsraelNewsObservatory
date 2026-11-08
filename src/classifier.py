@@ -1,6 +1,7 @@
 
 import json
 import os
+import time
 import requests
 
 CATEGORIES = [
@@ -9,6 +10,26 @@ CATEGORIES = [
     "מדע וטכנולוגיה", "חדשות טובות", "חדשות קלילות", "אחר"
 ]
 
+# Gemini rate limit: 12 requests per minute
+GEMINI_MIN_INTERVAL = 5.0
+_last_gemini_request = 0.0
+
+
+def wait_for_gemini_slot():
+    global _last_gemini_request
+
+    now = time.monotonic()
+    elapsed = now - _last_gemini_request
+    wait_time = GEMINI_MIN_INTERVAL - elapsed
+
+    if wait_time > 0:
+        print(
+            f"CLASSIFIER: Rate limit - waiting {wait_time:.1f}s",
+            flush=True
+        )
+        time.sleep(wait_time)
+
+    _last_gemini_request = time.monotonic()
 
 def heuristic_classify(title, summary=""):
     text = (title + " " + summary).lower()
@@ -107,6 +128,7 @@ confidence (0 עד 1), reason (משפט קצר בעברית).
     }
 
     try:
+        wait_for_gemini_slot()
         r = requests.post(
             "https://generativelanguage.googleapis.com/v1beta/interactions",
             headers={
