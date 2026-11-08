@@ -83,7 +83,9 @@ def main():
                     db.execute("INSERT INTO observations(article_id,source,observed_at,observed_title,feed_name) VALUES(?,?,?,?,?)",
                                (article_id, feed["name"], NOW, title, feed["name"]))
         except Exception as e:
-            errors.append(f'{feed["name"]}: {type(e).__name__}: {e}')
+            error = f'{feed["name"]}: {type(e).__name__}: {e}'
+            errors.append(error)
+            print(f"ERROR: {error}", flush=True)
     with connect() as db:
         db.execute("UPDATE runs SET finished_at=?,status=?,items_seen=?,new_articles=?,errors=? WHERE id=?",
                    (datetime.now(timezone.utc).isoformat(), "partial" if errors else "success",
