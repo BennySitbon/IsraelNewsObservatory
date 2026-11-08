@@ -115,7 +115,10 @@ confidence (0 עד 1), reason (משפט קצר בעברית).
             },
             json={
                 "model": model,
-                "input": prompt,
+                "input": prompt,      
+                "generation_config": {
+                    "thinking_level": "low"
+                },
                 "response_format": {
                     "type": "text",
                     "mime_type": "application/json",
