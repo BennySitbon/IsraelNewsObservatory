@@ -1,0 +1,46 @@
+
+name: Collect news
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect and classify
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-2.5-flash
+          DATABASE_PATH: data/news.db
+        run: python -m src.collect
+
+      - name: Commit database
+        run: |
+          git config user.name "news-observatory-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/news.db
+          git diff --cached --quiet || git commit -m "Update news observations"
+          git push
